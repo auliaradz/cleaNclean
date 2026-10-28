@@ -1,0 +1,931 @@
+<Window x:Class="cleaNclean.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="cleaNclean v.1.0.0"
+        Icon="pack://application:,,,/assets/app.ico"
+        Width="1320" Height="820"
+        MinWidth="1024" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        Background="#F8FAFC"
+        Foreground="#0F172A"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Revo-Style Top Ribbon Toolbar Button (Default) -->
+        <Style x:Key="RevoToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="1,2"/>
+            <Setter Property="MinWidth" Value="68"/>
+            <Setter Property="Height" Value="58"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#93C5FD"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#DBEAFE"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#60A5FA"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.42"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Revo-Style Top Ribbon Toolbar Button (Active Gold Highlight like Revo Uninstaller) -->
+        <Style x:Key="RevoToolbarButtonActive" TargetType="Button" BasedOn="{StaticResource RevoToolbarButton}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#FFFBEB" Offset="0.0"/>
+                        <GradientStop Color="#FDE68A" Offset="0.55"/>
+                        <GradientStop Color="#FCD34D" Offset="1.0"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#D97706"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Compact Toolbar Action Button -->
+        <Style x:Key="CompactActionBtn" TargetType="Button">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="9,3"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#60A5FA"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- High-Density Revo DataGrid Style -->
+        <Style x:Key="RevoDataGridStyle" TargetType="DataGrid">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="0,1,0,1"/>
+            <Setter Property="RowBackground" Value="#FFFFFF"/>
+            <Setter Property="AlternatingRowBackground" Value="#F8FAFC"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E2E8F0"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#E2E8F0"/>
+            <Setter Property="GridLinesVisibility" Value="All"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="CanUserSortColumns" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="RowHeight" Value="25"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        </Style>
+
+        <!-- Revo Column Header Style -->
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#FFFFFF" Offset="0.0"/>
+                        <GradientStop Color="#F1F5F9" Offset="1.0"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="7,4"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E0F2FE"/>
+                </Trigger>
+                <Trigger Property="SortDirection" Value="Ascending">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </Trigger>
+                <Trigger Property="SortDirection" Value="Descending">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Revo DataGridRow Style -->
+        <Style TargetType="DataGridRow">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#CCE8FF"/>
+                    <Setter Property="Foreground" Value="#0F172A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Revo DataGridCell Style -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="#0F172A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Row 0: Top Ribbon Toolbar (Revo Style) -->
+            <RowDefinition Height="Auto"/> <!-- Row 1: Search & Filter Bar -->
+            <RowDefinition Height="*"/>    <!-- Row 2: Main High-Density DataGrid Area -->
+            <RowDefinition Height="Auto"/> <!-- Row 3: Docked Description Panel -->
+            <RowDefinition Height="26"/>   <!-- Row 4: Classic Bottom Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- ====================================================================== -->
+        <!-- ROW 0: TOP RIBBON TOOLBAR (REVO UNINSTALLER STYLE)                     -->
+        <!-- ====================================================================== -->
+        <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="4,2">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                <!-- GROUP 1: MODULE VIEW SWITCHER -->
+                <!-- 1. Uninstaller -->
+                <Button x:Name="BtnRibbonUninstaller" Style="{StaticResource RevoToolbarButtonActive}"
+                        Click="BtnRibbonUninstaller_Click"
+                        ToolTip="{Binding Loc.TipUninstaller}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Grid Width="26" Height="26" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <Border Width="22" Height="20" Background="#2563EB" CornerRadius="3" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                            <Border Width="18" Height="4" Background="#93C5FD" CornerRadius="1" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="2,2,0,0"/>
+                            <Border Width="13" Height="13" Background="#DC2626" BorderBrush="#FFFFFF" BorderThickness="1.2" CornerRadius="7" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                <TextBlock Text="✕" Foreground="White" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <TextBlock Text="{Binding Loc.RibbonUninstaller}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 2. Windows Apps -->
+                <Button x:Name="BtnRibbonWindowsApps" Style="{StaticResource RevoToolbarButton}"
+                        Click="BtnRibbonWindowsApps_Click"
+                        ToolTip="{Binding Loc.TipWindowsApps}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Grid Width="26" Height="26" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <UniformGrid Rows="2" Columns="2" Width="21" Height="21">
+                                <Border Background="#0284C7" Margin="1" CornerRadius="1"/>
+                                <Border Background="#0EA5E9" Margin="1" CornerRadius="1"/>
+                                <Border Background="#38BDF8" Margin="1" CornerRadius="1"/>
+                                <Border Background="#0284C7" Margin="1" CornerRadius="1"/>
+                            </UniformGrid>
+                        </Grid>
+                        <TextBlock Text="{Binding Loc.RibbonWindowsApps}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 3. Leftover Scanner -->
+                <Button x:Name="BtnRibbonLeftover" Style="{StaticResource RevoToolbarButton}"
+                        Click="BtnRibbonLeftover_Click"
+                        ToolTip="{Binding Loc.TipLeftoverScanner}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Grid Width="34" Height="26" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <Border Width="22" Height="22" Background="#F59E0B" CornerRadius="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="🧹" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Background="#2563EB" CornerRadius="7" Padding="4,0" MinWidth="15" Height="14"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-2,0">
+                                <TextBlock Text="{Binding TotalCount}" Foreground="White" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <TextBlock Text="{Binding Loc.RibbonLeftoverScanner}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 4. Sandbox & Hooks -->
+                <Button x:Name="BtnRibbonSandbox" Style="{StaticResource RevoToolbarButton}"
+                        Click="BtnRibbonSandbox_Click"
+                        ToolTip="{Binding Loc.TipSandboxHooks}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Grid Width="34" Height="26" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <Border Width="22" Height="22" Background="#7C3AED" CornerRadius="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="🛡️" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Background="#7C3AED" BorderBrush="White" BorderThickness="1" CornerRadius="7" Padding="4,0" MinWidth="15" Height="14"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-2,0">
+                                <TextBlock Text="{Binding TotalSandboxHooksCount}" Foreground="White" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <TextBlock Text="{Binding Loc.RibbonSandboxHooks}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Rectangle Width="1" Height="44" Fill="#CBD5E1" Margin="5,4"/>
+
+                <!-- GROUP 2: CONTEXTUAL ACTION BUTTONS -->
+                <!-- 5. Uninstall -->
+                <Button x:Name="BtnRibbonUninstallAction" Style="{StaticResource RevoToolbarButton}"
+                        IsEnabled="{Binding CanUninstallSelected}"
+                        Click="BtnRibbonUninstallAction_Click"
+                        ToolTip="{Binding Loc.TipUninstallAction}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="24" Height="24" Background="#FEE2E2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <TextBlock Text="🗑️" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding Loc.RibbonUninstall}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 6. Scan Leftovers -->
+                <Button x:Name="BtnRibbonScanAction" Style="{StaticResource RevoToolbarButton}"
+                        IsEnabled="{Binding IsNotBusy}"
+                        Click="BtnRibbonScanAction_Click"
+                        ToolTip="{Binding Loc.TipScanAction}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="24" Height="24" Background="#DBEAFE" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <TextBlock Text="🔍" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding Loc.RibbonScanLeftovers}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 7. Clean Selected -->
+                <Button x:Name="BtnRibbonCleanAction" Style="{StaticResource RevoToolbarButton}"
+                        IsEnabled="{Binding CanCleanSelected}"
+                        Click="BtnRibbonCleanAction_Click"
+                        ToolTip="{Binding Loc.TipCleanAction}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="24" Height="24" Background="#DCFCE7" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <TextBlock Text="✨" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding Loc.RibbonCleanSelected}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 8. Refresh -->
+                <Button x:Name="BtnRibbonRefresh" Style="{StaticResource RevoToolbarButton}"
+                        IsEnabled="{Binding IsNotBusy}"
+                        Click="BtnRibbonRefresh_Click"
+                        ToolTip="{Binding Loc.TipRefresh}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="24" Height="24" Background="#ECFDF5" BorderBrush="#6EE7B7" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <TextBlock Text="🔄" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding Loc.RibbonRefresh}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Rectangle Width="1" Height="44" Fill="#CBD5E1" Margin="5,4"/>
+
+                <!-- GROUP 3: TOOLS, BACKUPS, LANGUAGE & ADMIN MODE -->
+                <!-- 9. Backups & Logs (Dropdown Menu) -->
+                <Button x:Name="BtnRibbonBackups" Style="{StaticResource RevoToolbarButton}"
+                        Click="BtnRibbonBackups_Click"
+                        ToolTip="{Binding Loc.TipBackups}">
+                    <Button.ContextMenu>
+                        <ContextMenu x:Name="MenuBackupsDropdown">
+                            <MenuItem Header="{Binding Loc.MenuOpenRegBackup}" Click="BtnOpenBackup_Click"/>
+                            <MenuItem Header="{Binding Loc.MenuOpenAuditLogs}" Click="BtnOpenAuditLogs_Click"/>
+                            <Separator/>
+                            <MenuItem Header="{Binding Loc.MenuExportJson}" Click="BtnExportSandboxJson_Click"/>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="24" Height="24" Background="#FEF3C7" BorderBrush="#FCD34D" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <TextBlock Text="📁" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding Loc.RibbonBackupsLogs}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 10. Language Switcher (English Default / Bahasa Indonesia) -->
+                <Button x:Name="BtnRibbonLanguage" Style="{StaticResource RevoToolbarButton}"
+                        Click="BtnRibbonLanguage_Click"
+                        ToolTip="{Binding Loc.TipLanguage}">
+                    <Button.ContextMenu>
+                        <ContextMenu x:Name="MenuLanguageDropdown">
+                            <MenuItem Header="🇺🇸 English (Default)" Click="MenuLangEnglish_Click"/>
+                            <MenuItem Header="🇮🇩 Bahasa Indonesia" Click="MenuLangIndonesian_Click"/>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="24" Height="24" Background="#E0F2FE" BorderBrush="#7DD3FC" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <TextBlock Text="🌐" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding Loc.RibbonLanguageLabel}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 11. Admin Mode -->
+                <Button x:Name="BtnRibbonAdmin" Style="{StaticResource RevoToolbarButton}"
+                        Click="BtnElevateAdmin_Click"
+                        ToolTip="{Binding Loc.TipAdmin}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="24" Height="24" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,2">
+                            <TextBlock Text="⚡" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding AdminToolbarLabel}" FontSize="11.5" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </WrapPanel>
+        </Border>
+
+        <!-- ====================================================================== -->
+        <!-- ROW 1: COMPACT REVO SEARCH & FILTER BAR                                -->
+        <!-- ====================================================================== -->
+        <Border Grid.Row="1" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="8,5">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                <!-- Real-Time Search Box with Magnifying Glass -->
+                <Border Background="#FFFFFF" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="2" Height="25" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🔍" FontSize="11.5" Margin="6,0,4,0" VerticalAlignment="Center" Foreground="#475569"/>
+                        <TextBox x:Name="TxtQuickFilter" Width="195" BorderThickness="0" Background="Transparent"
+                                 VerticalContentAlignment="Center" FontSize="12" Foreground="#0F172A"
+                                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="{Binding Loc.QuickFilterTooltip}"/>
+                        <Button Content="✕" Width="20" Height="20" BorderThickness="0" Background="Transparent"
+                                Foreground="#64748B" Cursor="Hand" FontSize="10"
+                                Click="BtnClearQuickFilter_Click" ToolTip="{Binding Loc.ClearFilterTooltip}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Search By Combo (Visible in Uninstaller & Windows Apps tabs) -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                            Visibility="{Binding ProgramSearchComboVisibility}">
+                    <TextBlock Text="{Binding Loc.SearchByLabel}" FontSize="11.5" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <ComboBox Width="140" Height="24" FontSize="11.5" VerticalContentAlignment="Center"
+                              SelectedValuePath="Tag"
+                              SelectedValue="{Binding ProgramSearchField, Mode=TwoWay}">
+                        <ComboBoxItem Content="Name" Tag="Name"/>
+                        <ComboBoxItem Content="Company" Tag="Company"/>
+                        <ComboBoxItem Content="Version" Tag="Version"/>
+                        <ComboBoxItem Content="Comment / Path" Tag="Comment"/>
+                        <ComboBoxItem Content="All Fields" Tag="All"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Leftover Scanner Filter Checkboxes & Manual Search (Visible in Leftover Scanner tab) -->
+                <WrapPanel Orientation="Horizontal" VerticalAlignment="Center"
+                           Visibility="{Binding LeftoverFilterBarVisibility}">
+                    <TextBlock Text="{Binding Loc.FilterByLabel}" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <CheckBox Content="{Binding Loc.ChkAppData}" IsChecked="{Binding ScanAppData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0" Cursor="Hand"/>
+                    <CheckBox Content="{Binding Loc.ChkRegistry}" IsChecked="{Binding ScanRegistry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0" Cursor="Hand"/>
+                    <CheckBox Content="{Binding Loc.ChkShortcut}" IsChecked="{Binding ScanShortcuts, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0" Cursor="Hand"/>
+                    <CheckBox Content="{Binding Loc.ChkTaskStartup}" IsChecked="{Binding ScanTasks, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,8,0" Cursor="Hand"/>
+
+                    <Rectangle Width="1" Height="18" Fill="#CBD5E1" Margin="6,0,10,0"/>
+
+                    <!-- Manual Keyword Search Box -->
+                    <TextBlock Text="{Binding Loc.ManualSearchLabel}" FontSize="11.5" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBox Width="155" Height="24" FontSize="11.5" Padding="5,2" VerticalContentAlignment="Center"
+                             Text="{Binding SearchKeyword, UpdateSourceTrigger=PropertyChanged}"
+                             KeyDown="TxtKeywordSearch_KeyDown"
+                             ToolTip="{Binding Loc.ManualSearchTooltip}"/>
+                    <Button Content="{Binding Loc.ManualSearchButton}" Style="{StaticResource CompactActionBtn}" Margin="4,0,10,0"
+                            IsEnabled="{Binding IsNotBusy}" Click="BtnManualSearch_Click"/>
+
+                    <Rectangle Width="1" Height="18" Fill="#CBD5E1" Margin="0,0,10,0"/>
+
+                    <!-- Single Toggle CheckBox for Select All -->
+                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="8,3">
+                        <CheckBox Content="{Binding Loc.SelectAllLabel}"
+                                  IsChecked="{Binding IsAllLeftoversSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  FontSize="11.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" Cursor="Hand"
+                                  ToolTip="{Binding Loc.SelectAllTooltip}"/>
+                    </Border>
+                </WrapPanel>
+
+                <!-- Sandbox & Hooks Filter Checkboxes (Visible in Sandbox & Hooks tab) -->
+                <WrapPanel Orientation="Horizontal" VerticalAlignment="Center"
+                           Visibility="{Binding SandboxFilterBarVisibility}">
+                    <TextBlock Text="{Binding Loc.FilterByLabel}" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <CheckBox Content="{Binding Loc.ChkAppContainerAcl}" IsChecked="{Binding ScanAppContainerAcl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0" Cursor="Hand"/>
+                    <CheckBox Content="{Binding Loc.ChkVulkanHooks}" IsChecked="{Binding ScanVulkanHooks, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0" Cursor="Hand"/>
+                    <CheckBox Content="{Binding Loc.ChkLauncherPwa}" IsChecked="{Binding ScanBrokenLaunchers, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,8,0" Cursor="Hand"/>
+
+                    <Rectangle Width="1" Height="18" Fill="#CBD5E1" Margin="6,0,10,0"/>
+
+                    <!-- Single Toggle CheckBox for Select All -->
+                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="8,3">
+                        <CheckBox Content="{Binding Loc.SelectAllLabel}"
+                                  IsChecked="{Binding IsAllSandboxSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  FontSize="11.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" Cursor="Hand"
+                                  ToolTip="{Binding Loc.SelectAllTooltip}"/>
+                    </Border>
+                </WrapPanel>
+            </WrapPanel>
+        </Border>
+
+        <!-- ====================================================================== -->
+        <!-- ROW 2: MAIN HIGH-DENSITY DATAGRID AREA (4 VIEWS)                       -->
+        <!-- ====================================================================== -->
+        <Grid Grid.Row="2" Background="#FFFFFF">
+
+            <!-- VIEW 1: UNINSTALLER (INSTALLED DESKTOP PROGRAMS) -->
+            <DataGrid x:Name="GridPrograms"
+                      Style="{StaticResource RevoDataGridStyle}"
+                      Visibility="{Binding UninstallerViewVisibility}"
+                      ItemsSource="{Binding FilteredProgramsView}"
+                      SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
+                      MouseDoubleClick="GridPrograms_MouseDoubleClick">
+                <DataGrid.ContextMenu>
+                    <ContextMenu x:Name="CtxMenuPrograms">
+                        <MenuItem Header="{Binding Loc.CtxUninstallAndScan}" FontWeight="SemiBold" Click="MenuProgramUninstallAndScan_Click"/>
+                        <MenuItem Header="{Binding Loc.CtxScanLeftoversOnly}" Click="MenuProgramScanLeftoversOnly_Click"/>
+                        <Separator/>
+                        <MenuItem Header="{Binding Loc.CtxOpenInstallLocation}" Click="MenuProgramOpenInstallLocation_Click"/>
+                        <MenuItem Header="{Binding Loc.CtxOpenRegistryKey}" Click="MenuProgramOpenRegistryKey_Click"/>
+                        <MenuItem Header="{Binding Loc.CtxSearchOnline}" Click="MenuProgramSearchOnline_Click"/>
+                        <Separator/>
+                        <MenuItem Header="{Binding Loc.CtxCopyUninstallString}" Click="MenuProgramCopyUninstallString_Click"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+
+                <DataGrid.Columns>
+                    <!-- 1. Application (with real .exe / DisplayIcon) -->
+                    <DataGridTemplateColumn Header="Application" Width="2.3*" MinWidth="220" SortMemberPath="Name">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Image Source="{Binding IconSource}" Width="18" Height="18" Margin="2,0,7,0"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 2. Size -->
+                    <DataGridTextColumn Header="Size" Width="95" Binding="{Binding FormattedSize}" SortMemberPath="SizeInBytes">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Margin" Value="0,0,4,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- 3. Version -->
+                    <DataGridTextColumn Header="Version" Width="105" Binding="{Binding Version}" SortMemberPath="Version">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- 4. Type (64-bit / 32-bit) -->
+                    <DataGridTextColumn Header="Type" Width="65" Binding="{Binding ArchitectureType}" SortMemberPath="ArchitectureType">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- 5. Install Date -->
+                    <DataGridTextColumn Header="Install Date" Width="140" Binding="{Binding FormattedInstallDate}" SortMemberPath="InstallDateValue"/>
+
+                    <!-- 6. Company -->
+                    <DataGridTextColumn Header="Company" Width="170" Binding="{Binding Company}" SortMemberPath="Company"/>
+
+                    <!-- 7. Website -->
+                    <DataGridTextColumn Header="Website" Width="165" Binding="{Binding Website}" SortMemberPath="Website"/>
+
+                    <!-- 8. Comment / Install Location -->
+                    <DataGridTextColumn Header="Comment" Width="1.6*" Binding="{Binding EffectiveComment}" SortMemberPath="EffectiveComment"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- VIEW 2: WINDOWS APPS (MICROSOFT STORE / UWP PACKAGES) -->
+            <DataGrid x:Name="GridWindowsApps"
+                      Style="{StaticResource RevoDataGridStyle}"
+                      Visibility="{Binding WindowsAppsViewVisibility}"
+                      ItemsSource="{Binding FilteredWindowsAppsView}"
+                      SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
+                      MouseDoubleClick="GridPrograms_MouseDoubleClick">
+                <DataGrid.ContextMenu>
+                    <ContextMenu x:Name="CtxMenuWindowsApps">
+                        <MenuItem Header="{Binding Loc.CtxUninstallAppxAndScan}" FontWeight="SemiBold" Click="MenuProgramUninstallAndScan_Click"/>
+                        <MenuItem Header="{Binding Loc.CtxScanLeftoversOnly}" Click="MenuProgramScanLeftoversOnly_Click"/>
+                        <Separator/>
+                        <MenuItem Header="{Binding Loc.CtxOpenPackageLocation}" Click="MenuProgramOpenInstallLocation_Click"/>
+                        <MenuItem Header="{Binding Loc.CtxOpenRegistryKey}" Click="MenuProgramOpenRegistryKey_Click"/>
+                        <MenuItem Header="{Binding Loc.CtxSearchOnline}" Click="MenuProgramSearchOnline_Click"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Application (Windows Store / UWP)" Width="2.2*" MinWidth="220" SortMemberPath="Name">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Image Source="{Binding IconSource}" Width="18" Height="18" Margin="2,0,7,0"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Size" Width="95" Binding="{Binding FormattedSize}" SortMemberPath="SizeInBytes">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Margin" Value="0,0,4,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Version" Width="115" Binding="{Binding Version}" SortMemberPath="Version"/>
+                    <DataGridTextColumn Header="Type" Width="65" Binding="{Binding ArchitectureType}" SortMemberPath="ArchitectureType"/>
+                    <DataGridTextColumn Header="Install Date" Width="140" Binding="{Binding FormattedInstallDate}" SortMemberPath="InstallDateValue"/>
+                    <DataGridTextColumn Header="Company" Width="170" Binding="{Binding Company}" SortMemberPath="Company"/>
+                    <DataGridTextColumn Header="Package Full Name" Width="2*" Binding="{Binding PackageFullName}" SortMemberPath="PackageFullName"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- VIEW 3: LEFTOVER SCANNER -->
+            <Grid Visibility="{Binding LeftoverViewVisibility}">
+                <DataGrid x:Name="GridLeftovers"
+                          Style="{StaticResource RevoDataGridStyle}"
+                          ItemsSource="{Binding FilteredItemsView}"
+                          SelectedItem="{Binding SelectedLeftover, Mode=TwoWay}">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu x:Name="CtxMenuLeftovers">
+                            <MenuItem Header="{Binding Loc.CtxOpenExplorer}" Click="MenuOpenLocation_Click"/>
+                            <MenuItem Header="{Binding Loc.CtxCopyPath}" Click="MenuCopyPath_Click"/>
+                            <Separator/>
+                            <MenuItem Header="{Binding Loc.CtxAddWhitelist}" Click="MenuAddWhitelist_Click"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+
+                    <DataGrid.Columns>
+                        <!-- 1. CheckBox -->
+                        <DataGridTemplateColumn Header="✓" Width="36" CanUserResize="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- 2. Category -->
+                        <DataGridTemplateColumn Header="Category" Width="135" SortMemberPath="CategoryLabel">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CategoryIcon}" Margin="2,0,6,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CategoryLabel}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- 3. Name -->
+                        <DataGridTextColumn Header="Leftover / App Name" Width="195" Binding="{Binding Name}" SortMemberPath="Name">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 4. Location -->
+                        <DataGridTextColumn Header="Location (Path / Registry Key)" Width="2.4*" Binding="{Binding Location}" SortMemberPath="Location">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontFamily" Value="Consolas"/>
+                                    <Setter Property="FontSize" Value="11.5"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 5. Reason -->
+                        <DataGridTextColumn Header="Detection Reason" Width="1.8*" Binding="{Binding Reason}" SortMemberPath="Reason">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#334155"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 6. Confidence -->
+                        <DataGridTextColumn Header="Confidence" Width="140" Binding="{Binding ConfidenceLevel}" SortMemberPath="ConfidenceLevel"/>
+
+                        <!-- 7. Size -->
+                        <DataGridTextColumn Header="Size" Width="95" Binding="{Binding FormattedSize}" SortMemberPath="SizeInBytes">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Margin" Value="0,0,4,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Empty State Overlay for Leftover Scanner -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                            Visibility="{Binding LeftoverEmptyVisibility}">
+                    <TextBlock Text="🧹" FontSize="30" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <TextBlock Text="{Binding Loc.EmptyLeftoverTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#334155" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Loc.EmptyLeftoverSub}"
+                               FontSize="12" Foreground="#64748B" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- VIEW 4: SANDBOX & GPU HOOKS CLEANER -->
+            <Grid Visibility="{Binding SandboxHooksViewVisibility}">
+                <DataGrid x:Name="GridSandboxHooks"
+                          Style="{StaticResource RevoDataGridStyle}"
+                          ItemsSource="{Binding FilteredSandboxHookView}"
+                          SelectedItem="{Binding SelectedSandboxFinding, Mode=TwoWay}">
+                    <DataGrid.Columns>
+                        <!-- 1. CheckBox -->
+                        <DataGridTemplateColumn Header="✓" Width="36" CanUserResize="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- 2. Sub-Module Category -->
+                        <DataGridTextColumn Header="Sub-Module" Width="155" Binding="{Binding CategoryBadge}" SortMemberPath="Category">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 3. Severity -->
+                        <DataGridTextColumn Header="Severity" Width="80" Binding="{Binding SeverityLabel}" SortMemberPath="Severity">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 4. Target -->
+                        <DataGridTextColumn Header="Target (Directory / Registry / Shortcut)" Width="2.1*" Binding="{Binding Target}" SortMemberPath="Target">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontFamily" Value="Consolas"/>
+                                    <Setter Property="FontSize" Value="11.5"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 5. Issue Description -->
+                        <DataGridTextColumn Header="Issue Description" Width="2.3*" Binding="{Binding IssueDescription}" SortMemberPath="IssueDescription">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 6. Recommended Action -->
+                        <DataGridTextColumn Header="Recommended" Width="130" Binding="{Binding RecommendedActionLabel}" SortMemberPath="RecommendedAction">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#2563EB"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 7. Action ComboBox -->
+                        <DataGridTemplateColumn Header="Selected Action" Width="125">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox ItemsSource="{Binding AvailableActions}"
+                                              SelectedItem="{Binding SelectedAction, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              Height="21" FontSize="11" Padding="4,1"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Empty State Overlay for Sandbox & Hooks -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                            Visibility="{Binding SandboxEmptyVisibility}">
+                    <TextBlock Text="🛡️" FontSize="30" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <TextBlock Text="{Binding Loc.EmptySandboxTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#334155" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Loc.EmptySandboxSub}"
+                               FontSize="12" Foreground="#64748B" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- ====================================================================== -->
+        <!-- ROW 3: DOCKED "DESCRIPTION PANEL" (REVO UNINSTALLER STYLE)             -->
+        <!-- ====================================================================== -->
+        <Border Grid.Row="3" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0">
+            <StackPanel>
+                <!-- Description Panel Title Bar -->
+                <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="8,3">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="{Binding DescriptionHeaderTitle}"
+                                   FontWeight="Bold" FontSize="11.5" Foreground="#0F172A" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <!-- Safety Execution Checkboxes (Recycle Bin & Registry Backup) -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                            <CheckBox Content="{Binding Loc.ChkRecycleBin}" IsChecked="{Binding SendToRecycleBin}"
+                                      FontSize="11.5" Foreground="#334155" Margin="0,0,14,0" VerticalAlignment="Center"/>
+                            <CheckBox Content="{Binding Loc.ChkBackupRegSddl}" IsChecked="{Binding BackupRegistry}"
+                                      FontSize="11.5" Foreground="#334155" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Pin / Collapse Button -->
+                        <Button Grid.Column="2" Content="{Binding DescriptionToggleGlyph}"
+                                Width="20" Height="18" FontSize="11" BorderThickness="0" Background="Transparent"
+                                Foreground="#475569" Cursor="Hand" Click="BtnToggleDescriptionPanel_Click"
+                                ToolTip="{Binding Loc.ToggleDescriptionTooltip}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Description Panel Body -->
+                <Grid Visibility="{Binding DescriptionPanelBodyVisibility}" MinHeight="58" MaxHeight="76" Margin="10,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBox Text="{Binding DescriptionPrimaryText, Mode=OneWay}"
+                                 IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                 TextWrapping="Wrap" FontSize="11.5" Foreground="#0F172A" Padding="0"/>
+                        <TextBox Text="{Binding DescriptionSecondaryText, Mode=OneWay}"
+                                 Visibility="{Binding DescriptionSecondaryVisibility}"
+                                 IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                 TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Foreground="#334155"
+                                 Margin="0,3,0,0" Padding="0"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ====================================================================== -->
+        <!-- ROW 4: CLASSIC REVO BOTTOM STATUS BAR                                  -->
+        <!-- ====================================================================== -->
+        <Border Grid.Row="4" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="260"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Panel: Total Installations / Leftovers Count -->
+                <Border Grid.Column="0" BorderBrush="#CBD5E1" BorderThickness="0,0,1,0" Padding="8,0">
+                    <TextBlock Text="{Binding StatusBarLeftCountText}"
+                               FontSize="11.5" Foreground="#0F172A" VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Middle Panel: Last Operation Status & Cancel Button -->
+                <Border Grid.Column="1" BorderBrush="#CBD5E1" BorderThickness="0,0,1,0" Padding="8,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding StatusMessage}"
+                                   FontSize="11.5" Foreground="#334155" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Button Grid.Column="1" Content="{Binding Loc.CancelProcessButton}" FontSize="11" Padding="6,1" Margin="6,2,0,2"
+                                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"
+                                Click="BtnCancelScan_Click"/>
+                    </Grid>
+                </Border>
+
+                <!-- Right Panel: Admin Status Indicator & Primary Cleaner Execution Button -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="{Binding CleanerActionButtonText}"
+                            Visibility="{Binding CleanerActionBarVisibility}"
+                            IsEnabled="{Binding CanCleanSelected}"
+                            Click="BtnRibbonCleanAction_Click"
+                            Background="#DC2626" Foreground="White" FontWeight="SemiBold" FontSize="11"
+                            BorderThickness="0" Padding="10,2" Margin="6,2,6,2" Cursor="Hand"/>
+
+                    <Border Padding="10,0" Background="Transparent" Cursor="Hand"
+                            MouseLeftButtonUp="StatusBarAdmin_Click"
+                            ToolTip="{Binding Loc.StatusBarAdminTooltip}">
+                        <TextBlock Text="{Binding AdminStatusBadge}"
+                                   FontSize="11.5" FontWeight="SemiBold" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

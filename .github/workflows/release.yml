@@ -1,0 +1,53 @@
+name: Build & Publish GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release version tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build Windows x64 Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8.0 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore .\cleaNclean.csproj
+
+      - name: Build Release & Run Automated Self-Test
+        run: |
+          dotnet build .\cleaNclean.csproj -c Release --no-restore
+          .\bin\Release\net8.0-windows\cleaNclean.exe --self-test
+
+      - name: Package Release Artifacts (Standalone & Lightweight)
+        shell: pwsh
+        run: .\scripts\build_release.ps1
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "cleaNclean ${{ github.ref_name }}"
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
