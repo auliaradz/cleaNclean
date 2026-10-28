@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20(x64)-0284C7?style=flat-square" alt="Platform Windows" />
   <img src="https://img.shields.io/badge/.NET-8.0%20WPF-7C3AED?style=flat-square" alt=".NET 8 WPF" />
   <img src="https://img.shields.io/badge/language-English%20%7C%20Bahasa%20Indonesia-059669?style=flat-square" alt="Bilingual UI" />
-  <img src="https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square" alt="License MIT" />
+  <img src="https://img.shields.io/badge/license-GPL--3.0-F59E0B?style=flat-square" alt="License GPL-3.0" />
 </p>
 
 ---
@@ -124,4 +124,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\convert_svg_to_ico
 
 ## 📄 License
 
-Licensed under the [MIT License](LICENSE).
+Copyright © 2026 **auliaradz**.
+Licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).

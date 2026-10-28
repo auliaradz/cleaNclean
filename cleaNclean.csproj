@@ -23,6 +23,7 @@
     <Company>auliaradz</Company>
     <Description>Windows System Uninstaller, Orphaned Leftover &amp; Sandbox/GPU Hook Cleaner</Description>
     <Copyright>Copyright © 2026 auliaradz</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <DebugType>embedded</DebugType>
   </PropertyGroup>
