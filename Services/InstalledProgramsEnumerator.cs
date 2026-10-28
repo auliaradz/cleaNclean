@@ -73,8 +73,20 @@ public class InstalledProgramsEnumerator
                         if (string.IsNullOrWhiteSpace(displayName))
                             continue;
 
-                        // Filter out hidden system components & minor hotfixes
-                        if (appKey.GetValue("SystemComponent") is int sysComp && sysComp == 1)
+                        bool isSysComponent = appKey.GetValue("SystemComponent") is int sysComp && sysComp == 1;
+                        bool isNoRemove = appKey.GetValue("NoRemove") is int noRem && noRem == 1;
+
+                        // Keep notable protected/bundled apps (e.g., Microsoft Edge WebView2, Edge Update, Cortana, etc.)
+                        // while filtering out internal MSI sub-components & hotfixes
+                        bool isNotableProtectedApp =
+                            displayName.Contains("Microsoft Edge", StringComparison.OrdinalIgnoreCase) ||
+                            displayName.Contains("WebView2", StringComparison.OrdinalIgnoreCase) ||
+                            displayName.Contains("OneDrive", StringComparison.OrdinalIgnoreCase) ||
+                            displayName.Contains("Xbox", StringComparison.OrdinalIgnoreCase) ||
+                            displayName.Contains("Copilot", StringComparison.OrdinalIgnoreCase) ||
+                            displayName.Contains("Teams", StringComparison.OrdinalIgnoreCase);
+
+                        if (isSysComponent && !isNotableProtectedApp)
                             continue;
                         if (!string.IsNullOrWhiteSpace(appKey.GetValue("ParentKeyName") as string))
                             continue;
@@ -86,8 +98,14 @@ public class InstalledProgramsEnumerator
 
                         string uninstallString = (appKey.GetValue("UninstallString") as string)?.Trim() ?? string.Empty;
                         string quietUninstall = (appKey.GetValue("QuietUninstallString") as string)?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(uninstallString) && string.IsNullOrWhiteSpace(quietUninstall))
+                        string modifyPath = (appKey.GetValue("ModifyPath") as string)?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(uninstallString) &&
+                            string.IsNullOrWhiteSpace(quietUninstall) &&
+                            string.IsNullOrWhiteSpace(modifyPath))
                             continue;
+
+                        if (string.IsNullOrWhiteSpace(uninstallString))
+                            uninstallString = !string.IsNullOrWhiteSpace(quietUninstall) ? quietUninstall : modifyPath;
 
                         string installLocation = CleanDirectoryPath(appKey.GetValue("InstallLocation") as string);
                         string dedupKey = $"{displayName}|{installLocation}";
@@ -157,7 +175,9 @@ public class InstalledProgramsEnumerator
                             QuietUninstallString = quietUninstall,
                             RegistryKeyPath = $@"{src.HivePrefix}\{subKeyName}",
                             DisplayIconRaw = displayIconRaw,
-                            IsWindowsApp = false
+                            IsWindowsApp = false,
+                            IsProtectedApp = isNoRemove || isSysComponent || isNotableProtectedApp,
+                            IsSystemComponent = isSysComponent
                         });
                     }
                     catch
@@ -692,39 +712,127 @@ public class InstalledProgramsEnumerator
     }
 
     /// <summary>
-    /// Executes the uninstaller for the selected program (Win32 or UWP/Store) and waits for it to finish.
+    /// Executes a Multi-Stage Smart &amp; Force Uninstaller capable of removing protected/stubborn applications
+    /// such as Microsoft Edge, Edge WebView2, OneDrive, NonRemovable UWP/Store apps, and broken Win32 installers.
     /// </summary>
-    public static async Task<bool> RunUninstallerProcessAsync(InstalledProgramItem program)
+    public static async Task<bool> RunUninstallerProcessAsync(
+        InstalledProgramItem program,
+        bool allowForceFallback = true,
+        IProgress<string>? progress = null)
     {
-        if (program.IsWindowsApp && !string.IsNullOrWhiteSpace(program.PackageFullName))
+        return await Task.Run(async () =>
         {
-            var psi = new ProcessStartInfo
+            bool isEn = LocalizationManager.Instance.IsEnglish;
+
+            // =====================================================================
+            // CASE 1: WINDOWS STORE / UWP / SYSTEM APPX PACKAGE (INCLUDING PROTECTED INBOX APPS)
+            // =====================================================================
+            if (program.IsWindowsApp && !string.IsNullOrWhiteSpace(program.PackageFullName))
             {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{program.PackageFullName}'\"",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            if (proc != null)
-            {
-                await proc.WaitForExitAsync();
-                return proc.ExitCode == 0;
+                progress?.Report(isEn
+                    ? $"Unlocking & removing Windows App package '{program.Name}'..."
+                    : $"Membuka kunci & menghapus paket Windows App '{program.Name}'...");
+
+                return await UninstallWindowsStorePackageForcefullyAsync(program.PackageFullName);
             }
-            return false;
-        }
 
-        string cmd = program.UninstallString.Trim();
-        if (string.IsNullOrWhiteSpace(cmd))
-            cmd = program.QuietUninstallString.Trim();
+            // =====================================================================
+            // CASE 2: WIN32 / 64-BIT / STUB INSTALLERS (INCLUDING MICROSOFT EDGE, WEBVIEW2, ONEDRIVE)
+            // =====================================================================
+            bool isEdgeApp =
+                program.Name.Equals("Microsoft Edge", StringComparison.OrdinalIgnoreCase) ||
+                program.UninstallString.Contains("--msedge", StringComparison.OrdinalIgnoreCase);
 
-        if (string.IsNullOrWhiteSpace(cmd))
-            return false;
+            bool isEdgeWebView =
+                program.Name.Contains("Edge WebView2", StringComparison.OrdinalIgnoreCase) ||
+                program.UninstallString.Contains("--msedgewebview", StringComparison.OrdinalIgnoreCase);
 
+            bool isOneDrive =
+                program.Name.Contains("OneDrive", StringComparison.OrdinalIgnoreCase) ||
+                program.UninstallString.Contains("OneDriveSetup.exe", StringComparison.OrdinalIgnoreCase);
+
+            // Step 1: Terminate running processes that lock the application's binaries
+            progress?.Report(isEn
+                ? $"Stopping active processes & background services for '{program.Name}'..."
+                : $"Menghentikan proses aktif & layanan latar belakang untuk '{program.Name}'...");
+            TerminateLockingProcesses(program, isEdgeApp, isEdgeWebView, isOneDrive);
+
+            // Step 2: Unlock Registry blocks (NoRemove = 0, EdgeUpdateDev AllowUninstall = 1, DMA Policy)
+            UnlockProtectedUninstallRegistry(program, isEdgeApp, isEdgeWebView);
+
+            // Step 3: Build & execute the enhanced native uninstaller command
+            string cmd = program.UninstallString.Trim();
+            if (string.IsNullOrWhiteSpace(cmd))
+                cmd = program.QuietUninstallString.Trim();
+
+            if (!string.IsNullOrWhiteSpace(cmd))
+            {
+                var (fileName, arguments) = ParseAndEnhanceUninstallCommand(cmd, isEdgeApp, isEdgeWebView);
+
+                // If Microsoft Edge's setup.exe path in Registry points to an older version folder, locate latest setup.exe
+                if ((isEdgeApp || isEdgeWebView) && !File.Exists(fileName))
+                {
+                    string? latestSetup = FindLatestChromiumSetupExe(program.InstallLocation, isEdgeWebView);
+                    if (!string.IsNullOrWhiteSpace(latestSetup))
+                        fileName = latestSetup;
+                }
+
+                if (!string.IsNullOrWhiteSpace(fileName))
+                {
+                    progress?.Report(isEn
+                        ? $"Running uninstaller for '{program.Name}'..."
+                        : $"Menjalankan uninstaller untuk '{program.Name}'...");
+
+                    try
+                    {
+                        var startInfo = new ProcessStartInfo
+                        {
+                            FileName = fileName,
+                            Arguments = arguments,
+                            UseShellExecute = true
+                        };
+
+                        using var uninstallProc = Process.Start(startInfo);
+                        if (uninstallProc != null)
+                        {
+                            await uninstallProc.WaitForExitAsync();
+                        }
+                    }
+                    catch
+                    {
+                        // Proceed to post-check & Force Removal fallback below
+                    }
+                }
+            }
+
+            // Step 4: Post-Uninstall Verification & Force Removal Fallback
+            // Many protected apps (like Microsoft Edge outside EEA regions) exit setup.exe with code 19 without removing files/Registry.
+            bool stillInstalled = IsProgramStillPresent(program, isEdgeApp, isEdgeWebView);
+            if (stillInstalled && allowForceFallback)
+            {
+                progress?.Report(isEn
+                    ? $"Native uninstaller was blocked or incomplete. Executing Force Uninstall for '{program.Name}'..."
+                    : $"Uninstaller bawaan ditolak/tidak tuntas. Menjalankan Force Uninstall untuk '{program.Name}'...");
+
+                await ExecuteForceUninstallFallbackAsync(program, isEdgeApp, isEdgeWebView, isOneDrive);
+            }
+            else if (isOneDrive)
+            {
+                CleanOneDriveExplorerPin();
+            }
+
+            return !IsProgramStillPresent(program, isEdgeApp, isEdgeWebView);
+        });
+    }
+
+    private static (string FileName, string Arguments) ParseAndEnhanceUninstallCommand(
+        string cmd,
+        bool isEdgeApp,
+        bool isEdgeWebView)
+    {
         string fileName;
         string arguments = string.Empty;
 
-        // Handle MsiExec commands
         if (cmd.Contains("msiexec", StringComparison.OrdinalIgnoreCase))
         {
             var guidMatch = MsiGuidRegex.Match(cmd);
@@ -767,21 +875,482 @@ public class InstalledProgramsEnumerator
             }
         }
 
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = Environment.ExpandEnvironmentVariables(fileName),
-            Arguments = Environment.ExpandEnvironmentVariables(arguments),
-            UseShellExecute = true
-        };
+        fileName = Environment.ExpandEnvironmentVariables(fileName);
+        arguments = Environment.ExpandEnvironmentVariables(arguments);
 
-        using var uninstallProc = Process.Start(startInfo);
-        if (uninstallProc != null)
+        // Append --force-uninstall for Chromium / Microsoft Edge / WebView2 setup.exe installers
+        if ((isEdgeApp || isEdgeWebView || fileName.EndsWith(@"\Installer\setup.exe", StringComparison.OrdinalIgnoreCase)) &&
+            !arguments.Contains("--force-uninstall", StringComparison.OrdinalIgnoreCase))
         {
-            await uninstallProc.WaitForExitAsync();
-            return true;
+            arguments = $"{arguments} --force-uninstall".Trim();
         }
 
+        return (fileName, arguments);
+    }
+
+    private static string? FindLatestChromiumSetupExe(string installLocation, bool isWebView)
+    {
+        try
+        {
+            string baseDir = !string.IsNullOrWhiteSpace(installLocation) && Directory.Exists(installLocation)
+                ? installLocation
+                : Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                    "Microsoft",
+                    isWebView ? @"EdgeWebView\Application" : @"Edge\Application");
+
+            if (!Directory.Exists(baseDir))
+                return null;
+
+            return Directory.EnumerateFiles(baseDir, "setup.exe", SearchOption.AllDirectories)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void TerminateLockingProcesses(
+        InstalledProgramItem program,
+        bool isEdgeApp,
+        bool isEdgeWebView,
+        bool isOneDrive)
+    {
+        var targetProcessNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (isEdgeApp)
+        {
+            targetProcessNames.Add("msedge");
+            targetProcessNames.Add("MicrosoftEdgeUpdate");
+            targetProcessNames.Add("identity_helper");
+            targetProcessNames.Add("elevation_service");
+            targetProcessNames.Add("pwahelper");
+        }
+
+        if (isEdgeWebView)
+        {
+            targetProcessNames.Add("msedgewebview2");
+            targetProcessNames.Add("MicrosoftEdgeUpdate");
+        }
+
+        if (isOneDrive)
+        {
+            targetProcessNames.Add("OneDrive");
+            targetProcessNames.Add("OneDriveSetup");
+            targetProcessNames.Add("FileCoAuth");
+        }
+
+        foreach (var procName in targetProcessNames)
+        {
+            try
+            {
+                foreach (var p in Process.GetProcessesByName(procName))
+                {
+                    try { p.Kill(entireProcessTree: true); p.WaitForExit(1500); } catch { }
+                    finally { p.Dispose(); }
+                }
+            }
+            catch { }
+        }
+
+        // Also kill any process running from inside the program's InstallLocation
+        if (!string.IsNullOrWhiteSpace(program.InstallLocation) &&
+            Directory.Exists(program.InstallLocation) &&
+            !IsSystemOrInstallerDirectory(program.InstallLocation))
+        {
+            try
+            {
+                int currentPid = Environment.ProcessId;
+                foreach (var p in Process.GetProcesses())
+                {
+                    try
+                    {
+                        if (p.Id == currentPid) continue;
+                        string? mainMod = p.MainModule?.FileName;
+                        if (!string.IsNullOrWhiteSpace(mainMod) &&
+                            mainMod.StartsWith(program.InstallLocation, StringComparison.OrdinalIgnoreCase))
+                        {
+                            p.Kill(entireProcessTree: true);
+                            p.WaitForExit(1500);
+                        }
+                    }
+                    catch { }
+                    finally { p.Dispose(); }
+                }
+            }
+            catch { }
+        }
+    }
+
+    private static void UnlockProtectedUninstallRegistry(
+        InstalledProgramItem program,
+        bool isEdgeApp,
+        bool isEdgeWebView)
+    {
+        // 1. Remove NoRemove / NoModify on the program's Uninstall key
+        try
+        {
+            var (hive, view, subKeyPath) = ParseRegistryKeyPath(program.RegistryKeyPath);
+            if (subKeyPath != null)
+            {
+                using var baseKey = RegistryKey.OpenBaseKey(hive, view);
+                using var appKey = baseKey.OpenSubKey(subKeyPath, writable: true);
+                if (appKey != null)
+                {
+                    appKey.DeleteValue("NoRemove", throwOnMissingValue: false);
+                    appKey.DeleteValue("NoModify", throwOnMissingValue: false);
+                    appKey.DeleteValue("SystemComponent", throwOnMissingValue: false);
+                }
+            }
+        }
+        catch { }
+
+        if (!isEdgeApp && !isEdgeWebView)
+            return;
+
+        // 2. Unlock EdgeUpdateDev AllowUninstall = 1 & remove experiment_control_labels
+        foreach (var view in new[] { RegistryView.Registry32, RegistryView.Registry64 })
+        {
+            try
+            {
+                using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                using (var devKey = hklm.CreateSubKey(@"SOFTWARE\Microsoft\EdgeUpdateDev", writable: true))
+                {
+                    devKey?.SetValue("AllowUninstall", 1, RegistryValueKind.DWord);
+                }
+
+                // Clear experiment_control_labels that block uninstallation on modern Edge versions
+                string[] edgeGuids =
+                [
+                    "{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}", // Microsoft Edge Stable
+                    "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"  // Microsoft Edge WebView2
+                ];
+
+                foreach (var guid in edgeGuids)
+                {
+                    using var clientState = hklm.OpenSubKey($@"SOFTWARE\Microsoft\EdgeUpdate\ClientState\{guid}", writable: true);
+                    clientState?.DeleteValue("experiment_control_labels", throwOnMissingValue: false);
+                    clientState?.SetValue("AllowUninstall", 1, RegistryValueKind.DWord);
+
+                    using var clients = hklm.OpenSubKey($@"SOFTWARE\Microsoft\EdgeUpdate\Clients\{guid}", writable: true);
+                    clients?.DeleteValue("NoRemove", throwOnMissingValue: false);
+                }
+
+                // Prevent Windows Update from forcibly reinstalling Edge
+                using (var edgeUpdateKey = hklm.CreateSubKey(@"SOFTWARE\Microsoft\EdgeUpdate", writable: true))
+                {
+                    edgeUpdateKey?.SetValue("DoNotUpdateToEdgeWithChromium", 1, RegistryValueKind.DWord);
+                }
+            }
+            catch { }
+        }
+
+        // 3. Unlock IntegratedServicesRegionPolicySet.json policy {1d290564-964a-4c1e-823d-278610c84b68} if running as Admin
+        try
+        {
+            string policyFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "IntegratedServicesRegionPolicySet.json");
+            if (File.Exists(policyFile))
+            {
+                RunHiddenCommand("takeown.exe", $"/F \"{policyFile}\" /A");
+                RunHiddenCommand("icacls.exe", $"\"{policyFile}\" /grant *S-1-5-32-544:F");
+
+                string json = File.ReadAllText(policyFile);
+                // Enable Edge uninstall policy across all regions
+                string updated = Regex.Replace(
+                    json,
+                    @"(""1d290564-964a-4c1e-823d-278610c84b68""[\s\S]{1,350}?""defaultState""\s*:\s*"")disabled("")",
+                    "${1}enabled${2}",
+                    RegexOptions.IgnoreCase);
+
+                if (!string.Equals(json, updated, StringComparison.Ordinal))
+                {
+                    File.WriteAllText(policyFile, updated);
+                }
+            }
+        }
+        catch { }
+    }
+
+    private static bool IsProgramStillPresent(
+        InstalledProgramItem program,
+        bool isEdgeApp,
+        bool isEdgeWebView)
+    {
+        if (isEdgeApp)
+        {
+            string edgeExe = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                @"Microsoft\Edge\Application\msedge.exe");
+            if (File.Exists(edgeExe))
+                return true;
+        }
+
+        if (isEdgeWebView)
+        {
+            string webViewDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                @"Microsoft\EdgeWebView\Application");
+            if (Directory.Exists(webViewDir) && Directory.EnumerateFiles(webViewDir, "msedgewebview2.exe", SearchOption.AllDirectories).Any())
+                return true;
+        }
+
+        // Check if Registry Uninstall key still exists
+        try
+        {
+            var (hive, view, subKeyPath) = ParseRegistryKeyPath(program.RegistryKeyPath);
+            if (subKeyPath != null)
+            {
+                using var baseKey = RegistryKey.OpenBaseKey(hive, view);
+                using var appKey = baseKey.OpenSubKey(subKeyPath);
+                if (appKey != null)
+                    return true;
+            }
+        }
+        catch { }
+
         return false;
+    }
+
+    private static async Task ExecuteForceUninstallFallbackAsync(
+        InstalledProgramItem program,
+        bool isEdgeApp,
+        bool isEdgeWebView,
+        bool isOneDrive)
+    {
+        // 1. Export Registry Backup (.reg) before forced removal
+        BackupUninstallRegistryKey(program.RegistryKeyPath, program.Name);
+
+        // 2. Kill processes again in case setup.exe respawned them
+        TerminateLockingProcesses(program, isEdgeApp, isEdgeWebView, isOneDrive);
+
+        // 3. Special complete teardown for Microsoft Edge / EdgeWebView2
+        if (isEdgeApp)
+        {
+            // Stop & delete Edge Updater services
+            foreach (var svc in new[] { "edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService" })
+            {
+                RunHiddenCommand("sc.exe", $"stop \"{svc}\"");
+                RunHiddenCommand("sc.exe", $"delete \"{svc}\"");
+            }
+
+            // Delete Edge Scheduled Tasks
+            RunHiddenCommand("powershell.exe", "-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask -TaskName 'MicrosoftEdgeUpdate*' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false -ErrorAction SilentlyContinue\"");
+
+            // Remove Microsoft Edge AppX / Store stub packages
+            await UninstallWindowsStorePackageForcefullyAsync("*MicrosoftEdge*");
+
+            // Force delete Edge directories in Program Files (x86)\Microsoft
+            string msRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft");
+            string[] edgeDirs = isEdgeWebView
+                ? [Path.Combine(msRoot, "EdgeWebView")]
+                : [
+                    Path.Combine(msRoot, "Edge"),
+                    Path.Combine(msRoot, "EdgeCore"),
+                    Path.Combine(msRoot, "EdgeUpdate"),
+                    Path.Combine(msRoot, "Temp")
+                  ];
+
+            foreach (var dir in edgeDirs)
+            {
+                ForceDeleteDirectoryWithTakeOwn(dir);
+            }
+
+            // Clean Edge ClientState & Clients keys so Windows doesn't think Edge is still installed
+            foreach (var view in new[] { RegistryView.Registry32, RegistryView.Registry64 })
+            {
+                try
+                {
+                    using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                    hklm.DeleteSubKeyTree(@"SOFTWARE\Microsoft\EdgeUpdate\Clients\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}", throwOnMissingSubKey: false);
+                    hklm.DeleteSubKeyTree(@"SOFTWARE\Microsoft\EdgeUpdate\ClientState\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}", throwOnMissingSubKey: false);
+                    hklm.DeleteSubKeyTree(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe", throwOnMissingSubKey: false);
+                }
+                catch { }
+            }
+        }
+        else if (isEdgeWebView)
+        {
+            string msRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft");
+            ForceDeleteDirectoryWithTakeOwn(Path.Combine(msRoot, "EdgeWebView"));
+
+            foreach (var view in new[] { RegistryView.Registry32, RegistryView.Registry64 })
+            {
+                try
+                {
+                    using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                    hklm.DeleteSubKeyTree(@"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", throwOnMissingSubKey: false);
+                    hklm.DeleteSubKeyTree(@"SOFTWARE\Microsoft\EdgeUpdate\ClientState\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", throwOnMissingSubKey: false);
+                }
+                catch { }
+            }
+        }
+        else
+        {
+            // Generic Force Uninstall for any stubborn Win32 application:
+            // Remove its InstallLocation directory (if safe and not a root system directory)
+            if (!string.IsNullOrWhiteSpace(program.InstallLocation) &&
+                Directory.Exists(program.InstallLocation) &&
+                !IsSystemOrInstallerDirectory(program.InstallLocation))
+            {
+                ForceDeleteDirectoryWithTakeOwn(program.InstallLocation);
+            }
+        }
+
+        if (isOneDrive)
+        {
+            CleanOneDriveExplorerPin();
+        }
+
+        // 4. Delete the program's Uninstall Registry Key so it is removed from Installed Programs
+        DeleteUninstallRegistryKey(program.RegistryKeyPath);
+    }
+
+    private static async Task<bool> UninstallWindowsStorePackageForcefullyAsync(string packageNameOrPattern)
+    {
+        // Unlock InboxApplications in HKLM so NonRemovable / System UWP packages (0x80073CFA) can be removed
+        string psScript = $@"
+$ErrorActionPreference = 'SilentlyContinue'
+$pkgs = Get-AppxPackage -AllUsers | Where-Object {{ $_.PackageFullName -like '{packageNameOrPattern}' -or $_.Name -like '{packageNameOrPattern}' }}
+if (-not $pkgs) {{
+    $pkgs = Get-AppxPackage | Where-Object {{ $_.PackageFullName -like '{packageNameOrPattern}' -or $_.Name -like '{packageNameOrPattern}' }}
+}}
+foreach ($p in $pkgs) {{
+    $inboxPath = ""HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\InboxApplications\$($p.PackageFullName)""
+    if (Test-Path $inboxPath) {{
+        Remove-Item -Path $inboxPath -Recurse -Force -ErrorAction SilentlyContinue
+    }}
+    $deprovPath = ""HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned\$($p.PackageFamilyName)""
+    New-Item -Path $deprovPath -Force -ErrorAction SilentlyContinue | Out-Null
+    Remove-AppxPackage -Package $p.PackageFullName -ErrorAction SilentlyContinue
+    Remove-AppxPackage -Package $p.PackageFullName -AllUsers -ErrorAction SilentlyContinue
+}}
+Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object {{ $_.PackageName -like '{packageNameOrPattern}' -or $_.DisplayName -like '{packageNameOrPattern}' }} | ForEach-Object {{
+    Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null
+}}
+";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psScript.Replace("\"", "\\\"")}\"",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var proc = Process.Start(psi);
+        if (proc != null)
+        {
+            await proc.WaitForExitAsync();
+            return true;
+        }
+        return false;
+    }
+
+    private static void CleanOneDriveExplorerPin()
+    {
+        try
+        {
+            using var hkcu = Registry.CurrentUser.OpenSubKey(@"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}", writable: true);
+            hkcu?.SetValue("System.IsPinnedToNameSpaceTree", 0, RegistryValueKind.DWord);
+        }
+        catch { }
+    }
+
+    private static void BackupUninstallRegistryKey(string registryKeyPath, string appName)
+    {
+        if (string.IsNullOrWhiteSpace(registryKeyPath))
+            return;
+
+        try
+        {
+            string backupDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "cleaNclean",
+                "Backups");
+            Directory.CreateDirectory(backupDir);
+
+            string safeName = Regex.Replace(appName, @"[^\w\-]", "_");
+            string outFile = Path.Combine(backupDir, $"UninstallKey_{safeName}_{DateTime.Now:yyyyMMdd_HHmmss}.reg");
+            RunHiddenCommand("reg.exe", $"export \"{registryKeyPath}\" \"{outFile}\" /y");
+        }
+        catch { }
+    }
+
+    private static void DeleteUninstallRegistryKey(string registryKeyPath)
+    {
+        var (hive, view, subKeyPath) = ParseRegistryKeyPath(registryKeyPath);
+        if (subKeyPath == null) return;
+
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(hive, view);
+            baseKey.DeleteSubKeyTree(subKeyPath, throwOnMissingSubKey: false);
+        }
+        catch
+        {
+            // Fallback via reg.exe with explicit 32/64 view
+            string regViewFlag = view == RegistryView.Registry32 ? "/reg:32" : "/reg:64";
+            RunHiddenCommand("reg.exe", $"delete \"{registryKeyPath}\" /f {regViewFlag}");
+        }
+    }
+
+    private static (RegistryHive Hive, RegistryView View, string? SubKeyPath) ParseRegistryKeyPath(string registryKeyPath)
+    {
+        if (string.IsNullOrWhiteSpace(registryKeyPath))
+            return (RegistryHive.LocalMachine, RegistryView.Default, null);
+
+        if (registryKeyPath.StartsWith(@"HKLM\SOFTWARE\WOW6432Node\", StringComparison.OrdinalIgnoreCase))
+        {
+            return (RegistryHive.LocalMachine, RegistryView.Registry32, @"SOFTWARE\" + registryKeyPath[@"HKLM\SOFTWARE\WOW6432Node\".Length..]);
+        }
+        if (registryKeyPath.StartsWith(@"HKLM\", StringComparison.OrdinalIgnoreCase))
+        {
+            return (RegistryHive.LocalMachine, RegistryView.Registry64, registryKeyPath[5..]);
+        }
+        if (registryKeyPath.StartsWith(@"HKCU\", StringComparison.OrdinalIgnoreCase))
+        {
+            return (RegistryHive.CurrentUser, RegistryView.Default, registryKeyPath[5..]);
+        }
+
+        return (RegistryHive.LocalMachine, RegistryView.Default, null);
+    }
+
+    private static void ForceDeleteDirectoryWithTakeOwn(string dirPath)
+    {
+        if (string.IsNullOrWhiteSpace(dirPath) || !Directory.Exists(dirPath) || IsSystemOrInstallerDirectory(dirPath))
+            return;
+
+        try
+        {
+            Directory.Delete(dirPath, recursive: true);
+            if (!Directory.Exists(dirPath))
+                return;
+        }
+        catch { }
+
+        // Take ownership & grant Administrators full control if locked by TrustedInstaller / SYSTEM
+        RunHiddenCommand("takeown.exe", $"/F \"{dirPath}\" /R /A /D Y");
+        RunHiddenCommand("icacls.exe", $"\"{dirPath}\" /grant *S-1-5-32-544:F /T /C /Q");
+        RunHiddenCommand("cmd.exe", $"/c rmdir /s /q \"{dirPath}\"");
+    }
+
+    private static void RunHiddenCommand(string fileName, string arguments)
+    {
+        try
+        {
+            using var proc = Process.Start(new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            });
+            proc?.WaitForExit(15000);
+        }
+        catch { }
     }
 
     /// <summary>

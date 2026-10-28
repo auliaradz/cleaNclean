@@ -21,6 +21,10 @@ public class InstalledProgramItem
     public string DisplayIconRaw { get; set; } = string.Empty;
     public bool IsWindowsApp { get; set; }
     public string PackageFullName { get; set; } = string.Empty;
+    public bool IsProtectedApp { get; set; }
+    public bool IsSystemComponent { get; set; }
+
+    public string ProtectionBadge => IsProtectedApp ? "🔒 Protected" : string.Empty;
 
     public string FormattedSize => FormatBytesRevoStyle(SizeInBytes);
 

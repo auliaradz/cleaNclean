@@ -712,16 +712,50 @@ public class MainViewModel : INotifyPropertyChanged
         program ??= SelectedProgram;
         if (program == null || IsBusy) return;
 
+        bool requiresElevation =
+            !IsAdmin &&
+            (program.IsProtectedApp ||
+             program.RegistryKeyPath.StartsWith(@"HKLM\", StringComparison.OrdinalIgnoreCase) ||
+             program.InstallLocation.Contains("Program Files", StringComparison.OrdinalIgnoreCase));
+
+        if (requiresElevation)
+        {
+            var askElevate = System.Windows.MessageBox.Show(
+                Loc.IsEnglish
+                    ? $"'{program.Name}' is a system-wide or protected application (HKLM / Program Files) that requires Administrator privileges to unlock and uninstall completely.\n\nRestart cleaNclean as Administrator now?"
+                    : $"'{program.Name}' adalah aplikasi tingkat sistem atau aplikasi terproteksi (HKLM / Program Files) yang membutuhkan hak akses Administrator untuk dibuka kuncinya dan dihapus secara tuntas.\n\nMulai ulang cleaNclean sebagai Administrator sekarang?",
+                Loc.IsEnglish ? "Administrator Privileges Required" : "Butuh Hak Akses Administrator",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (askElevate == MessageBoxResult.Yes)
+            {
+                if (SecurityAuditLogger.TryRestartAsAdministrator())
+                {
+                    System.Windows.Application.Current.Shutdown();
+                }
+                return;
+            }
+            if (askElevate == MessageBoxResult.Cancel)
+                return;
+        }
+
+        string protectedNote = program.IsProtectedApp
+            ? (Loc.IsEnglish
+                ? "\n• Smart Force-Uninstall: Active (Unlocks NoRemove/DMA policies, kills locking processes/services, and forces removal if the stub installer refuses)."
+                : "\n• Smart Force-Uninstall: Aktif (Membuka kunci NoRemove/DMA, menghentikan proses/service pengunci, dan memaksa hapus jika uninstaller bawaan menolak).")
+            : string.Empty;
+
         string confirmBody = Loc.IsEnglish
-            ? $"Do you want to run the Uninstaller for:\n\n" +
+            ? $"Do you want to uninstall:\n\n" +
               $"• Application: {program.Name}\n" +
               $"• Publisher: {(string.IsNullOrWhiteSpace(program.Company) ? "-" : program.Company)}\n" +
-              $"• Command: {program.UninstallString}\n\n" +
+              $"• Command: {program.UninstallString}{protectedNote}\n\n" +
               $"Once the uninstaller finishes, cleaNclean will automatically scan for all remaining files, folders & Registry leftovers for this application."
-            : $"Apakah Anda ingin menjalankan Uninstaller untuk:\n\n" +
+            : $"Apakah Anda ingin menghapus instalasi (Uninstall) untuk:\n\n" +
               $"• Aplikasi: {program.Name}\n" +
               $"• Publisher: {(string.IsNullOrWhiteSpace(program.Company) ? "-" : program.Company)}\n" +
-              $"• Command: {program.UninstallString}\n\n" +
+              $"• Command: {program.UninstallString}{protectedNote}\n\n" +
               $"Setelah proses uninstaller selesai, cleaNclean akan otomatis memindai seluruh sisa file/folder & Registry (Leftover) aplikasi ini.";
 
         var confirm = System.Windows.MessageBox.Show(
@@ -734,20 +768,18 @@ public class MainViewModel : INotifyPropertyChanged
             return;
 
         IsBusy = true;
-        StatusMessage = Loc.IsEnglish
-            ? $"Running uninstaller for '{program.Name}'... Please follow the application's uninstaller window."
-            : $"Menjalankan uninstaller untuk '{program.Name}'... Silakan ikuti jendela uninstaller aplikasi.";
+        var progress = new Progress<string>(msg => StatusMessage = msg);
 
         try
         {
-            await InstalledProgramsEnumerator.RunUninstallerProcessAsync(program);
+            await InstalledProgramsEnumerator.RunUninstallerProcessAsync(program, allowForceFallback: true, progress);
         }
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show(
                 Loc.IsEnglish
-                    ? $"Failed to launch built-in uninstaller for '{program.Name}': {ex.Message}\n\ncleaNclean will still proceed to scan leftovers for this application."
-                    : $"Gagal menjalankan uninstaller bawaan '{program.Name}': {ex.Message}\n\ncleaNclean akan tetap melanjutkan ke pemindaian Leftover untuk aplikasi ini.",
+                    ? $"Warning during uninstaller execution for '{program.Name}': {ex.Message}\n\ncleaNclean will proceed to scan leftovers for this application."
+                    : $"Peringatan saat menjalankan uninstaller '{program.Name}': {ex.Message}\n\ncleaNclean akan tetap melanjutkan ke pemindaian Leftover untuk aplikasi ini.",
                 Loc.IsEnglish ? "Uninstaller Warning" : "Peringatan Uninstaller",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
