@@ -1,0 +1,2 @@
+﻿dbdb682b9c10a5e210d51d74b5efd21284f8303282cd2a9e76b5f1bb87d6ce02  cleaNclean-v1.0.0-win-x64-lightweight.zip
+fb85a26d91798bd1567661099167f8e207524cd4841c583f35967c5bb94d365a  cleaNclean-v1.0.0-win-x64-standalone.zip
